@@ -37,6 +37,7 @@
 ;; Auto resize windows to something that makes sense
 ;; Mark multiple css selectors when choosing an attribute
 ;; Embed more python in this
+;; Change find element into find elements
 
 ;;; Code:
 
@@ -104,13 +105,12 @@
   )
 
 ;; Unexposed
-
-(defun send-to-python ( command &optional arg )
+(defun send-to-python ( command &optional arg bypass)
   "Main function to route commands to python"
   (if arg (setq command (format command arg)))
-  (if controller-is-recording
+  (if (and controller-is-recording (not bypass))
       (setq controller-recording (cons command controller-recording)))
-  (python-shell-send-string-no-output (format "%s" command))
+  (remove "" (split-string (python-shell-send-string-no-output (format "%s" command)) "\n"))
   )
 
 (defun controller-find-click (marker)
@@ -122,25 +122,33 @@
   "Switch to tab"
   (send-to-python "switch_window_switch(\"%s\", windows)" marker))
 
+(controller-attribute-chooser)
 (defun controller-attribute-chooser ()
-  "Choose an attribute for the element."
-  (let ((id (python-shell-send-string-no-output "element.get_attribute(\"id\")")) ;; id
-	(class (python-shell-send-string-no-output "element.get_attribute(\"class\")")) ;; class name
+  "Choose an attribute for the element."	
+  (let ((id (car (send-to-python "element.get_attribute(\"id\")" nil t))) ;; id
+	(class (car (send-to-python "element.get_attribute(\"class\")" nil t))) ;; class name
 	;; TODO css selector
-	(name (python-shell-send-string-no-output "element.get_attribute(\"name\")")) ;; name
+	(name (car (send-to-python "element.get_attribute(\"name\")" nil t))) ;; name
 	;; TODO xpath
-	(tag (python-shell-send-string-no-output "element.tag_name")) ;; tag name
-	(link (python-shell-send-string-no-output "element.get_attribute(\"href\")")));; link text
+	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
+	(link (car (send-to-python "element.get_attribute(\"href\")" nil t))));; link text
+    (setq options `((,(format "id - %s" id) . ,(format "element = controller.find_element_by_id(%s)" id))
+		    (,(format "class - %s" class) . ,(format "element = controller.find_element_by_class(%s)" class))
+		    (,(format "name - %s" name) . ,(format "element = controller.find_element_by_name(%s)" name))
+		    (,(format "tag - %s" tag) . ,(format "element = controller.find_element_by_tag_name(%s)" tag))
+		    (,(format "link - %s" link) . ,(format "element =controller.find_element_by_link_text(%s)" link))
+		    ))
     ;; TODO partial link text
     (setq helm-attribute-chooser
-	  '((name . "HELM at the Emacs")
-            (candidates . options)
+	  `((name . "Choose a selector to add to the recording")
+            (candidates . ,(mapcar 'car options))
             (action . (lambda (candidate)
-			(controller-switch-tab-switch candidate)))))
+			(setq controller-recording (cons (cdr (assoc candidate options)) controller-recording))))))
     (helm :sources '(helm-attribute-chooser))
     )
   )
 
+(setq controller-recording (cons command controller-recording))
 ;; Exposed
 
 (defun controller-scroll-down ()
