@@ -19,10 +19,16 @@
 ;; TODO Grabber
 ;;; Choose elements on a page to save to a list to be used in Emacs
 ;; Bring up a helm window to choose the selector (ID, class, XPATH, etc )
+;; 
 ;;; For non repeatable commands if recording mode is active bring up the chooser 
 ;; Better recording w/ output
+;; Send Escape
+;; Kill Tab
+;; Reopen last tab
+;; Reload
 
 ;;; Non-Essential
+;; Add constraints to make sure variables exist and return errors if they do not
 ;; Default https:// prefix for URL entry
 ;; Better bookmarks
 ;; Figure out better find options.  Currently find mode is pretty finnicky.
@@ -62,6 +68,7 @@
   (buffer-disable-undo "browser-controller")
   (run-python)
   (python-shell-send-string "from selenium import webdriver")
+  (python-shell-send-string "from selenium.webdriver.common.by import By")
   (cond ((string= controller-browser "firefox") (python-shell-send-string "controller = webdriver.Firefox()"))
 	((string= controller-browser "safari") (python-shell-send-string "controller = webdriver.Safari()"))
 	((string= controller-browser "chrome") (python-shell-send-string "controller = webdriver.Chrome()"))
@@ -72,6 +79,7 @@
   (setq controller-is-recording nil)
   (setq controller-recording '())
   (controller-resize-browser)
+  (controller-mode)
   )
 
 (define-derived-mode controller-mode special-mode "controller-mode"
@@ -82,12 +90,12 @@
   (define-key controller-mode-map (kbd "l") 'controller-scroll-right)
   (define-key controller-mode-map (kbd "i") 'controller-input-mode)
   (define-key controller-mode-map (kbd "<return>") 'controller-send-enter)
-  (define-key controller-mode-map (kbd "<esc>") 'controller-quit-find)
+  (define-key controller-mode-map (kbd "d") 'controller-quit-find)
   (define-key controller-mode-map (kbd "L") 'controller-url-goto)
   (define-key controller-mode-map (kbd "e") 'controller-forward-history)
   (define-key controller-mode-map (kbd "a") 'controller-backward-history)
   (define-key controller-mode-map (kbd "s") 'controller-search-in-page)
-  (define-key controller-mode-map (kbd "s") 'controller-guided-search-in-page)
+  (define-key controller-mode-map (kbd "S") 'controller-guided-search-in-page)
   (define-key controller-mode-map (kbd "r") 'controller-record)
   (define-key controller-mode-map (kbd "c") 'controller-click-highlighted)
   (define-key controller-mode-map (kbd "*") 'controller-highlight)
@@ -116,21 +124,21 @@
 
 (defun controller-attribute-chooser ()
   "Choose an attribute for the element."
-  ;; id
-  
-  ;; class name
-
-  ;; css selector
-
-  ;; name
-
-  ;; xpath
-
-  ;; tag name
-
-  ;; link text
-
-  ;; partial link text
+  (let ((id (python-shell-send-string-no-output "element.get_attribute(\"id\")")) ;; id
+	(class (python-shell-send-string-no-output "element.get_attribute(\"class\")")) ;; class name
+	;; TODO css selector
+	(name (python-shell-send-string-no-output "element.get_attribute(\"name\")")) ;; name
+	;; TODO xpath
+	(tag (python-shell-send-string-no-output "element.tag_name")) ;; tag name
+	(link (python-shell-send-string-no-output "element.get_attribute(\"href\")")));; link text
+    ;; TODO partial link text
+    (setq helm-attribute-chooser
+	  '((name . "HELM at the Emacs")
+            (candidates . options)
+            (action . (lambda (candidate)
+			(controller-switch-tab-switch candidate)))))
+    (helm :sources '(helm-attribute-chooser))
+    )
   )
 
 ;; Exposed
@@ -246,6 +254,7 @@
           (action . (lambda (candidate)
                       (controller-find-click candidate)))))
   (helm :sources '(some-helm-source))
+  (controller-quit-find)
   )
 
 (defun controller-quit-find ()

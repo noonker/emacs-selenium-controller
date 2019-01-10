@@ -29,7 +29,7 @@ btn.id = "emacsControllerClickables"
 elem = """var span = document.createElement("SPAN")
 var t = document.createTextNode("{}")
 span.appendChild(t)
-span.style.cssText = "position: absolute; display: block; top: {}px; left: {}px; white-space: nowrap; overflow: hidden; font-size: 12px; padding: 1px 3px 0px 3px; background: linear-gradient(to bottom, #FF1493 0%,#FF69B4 100%); border: solid 1px #C38A22; border-radius: 3px; box-shadow: 0px 3px 7px 0px rgba(0, 0, 0, 0.3); color: white;"
+span.style.cssText = "position: absolute; display: block; top: {}px; left: {}px; white-space: nowrap; overflow: hidden; font-size: 12px; padding: 1px 3px 0px 3px; background: linear-gradient(to bottom, #FF1493 0%,#FF69B4 100%); border: solid 1px #C38A22; border-radius: 3px; box-shadow: 0px 3px 7px 0px rgba(0, 0, 0, 0.3); color: white; z-index: 10000"
 btn.appendChild(span)
 """
 
