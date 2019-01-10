@@ -1,5 +1,9 @@
 ;;; brower-controller.el --- control a web browser with Emacs & Selenium.
 
+;; Author: "Joshua Person" <noonker@pm.me>
+;; Time-stamp: <09 January 2019>
+;; Version: 0.1
+
 ;;; Commentary:
 
 ;;; Nomenclature:
@@ -14,19 +18,19 @@
 ;;; Essential
 ;; TODO Grabber
 ;;; Choose elements on a page to save to a list to be used in Emacs
-
 ;; Bring up a helm window to choose the selector (ID, class, XPATH, etc )
 ;;; For non repeatable commands if recording mode is active bring up the chooser 
 ;; Better recording w/ output
 
 ;;; Non-Essential
-;; Default http
+;; Default https:// prefix for URL entry
 ;; Better bookmarks
-;; Figure out better find options
-;; Enable Addons
-;; Password Manager for scripts
-;; Auto resize windows
-;; Mark multiple css selectors
+;; Figure out better find options.  Currently find mode is pretty finnicky.
+;; Enable support for browser addons
+;; Support pass https://github.com/NicolasPetton/pass mode for scripts
+;; Auto resize windows to something that makes sense
+;; Mark multiple css selectors when choosing an attribute
+;; Embed more python in this
 
 ;;; Code:
 
