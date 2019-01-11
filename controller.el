@@ -63,7 +63,7 @@
   (setq controller-is-recording nil)
   (run-python)
   (controller-init)
-  (python-shell-send-file "controller.py")
+  (python-shell-send-file "/home/user/git/emacs-selenium-controller/controller.py")
   (controller-resize-browser)
   (controller-mode)
   )
@@ -123,10 +123,9 @@
   (remove "" (split-string (python-shell-send-string-no-output (format "%s" command)) "\n"))
   )
 
-(defun controller-marker-focus-and-click (marker)
+(defun controller-marker-focus (marker)
   "click on the thing"
   (python-shell-send-string-no-output (format "element = select_marker(\"%s\", markers)" marker))
-  (send-to-python "element.click()")
   )
 
 (defun controller-switch-tab-switch (marker)
@@ -310,12 +309,13 @@
 	'((name . "Choose Element")
           (candidates . options)
           (action . (lambda (candidate)
-                      (controller-marker-focus-and-click candidate)))))
-  (helm :sources '(some-helm-source))
-  (if controller-is-recording
-      (controller-attribute-chooser)
-      )
+                      (controller-marker-focus candidate)))))
+  (progn
+    (helm :sources '(some-helm-source))
+    (if controller-is-recording
+	(controller-attribute-chooser)))
   (controller-quit-find)
+  (controller-highlight)
   )
 
 (defun controller-quit-find ()
@@ -327,7 +327,7 @@
 (defun controller-switch-tab ()
   "switch tabs"
   (interactive)
-  (setq options (split-string (send-to-python "windows = switch_window(controller)") "\n"))
+  (setq options (send-to-python "windows = switch_window(controller)"))
   (setq some-helm-source
 	'((name . "Choose Tab")
           (candidates . options)
@@ -348,8 +348,8 @@
 	)
     (progn
       (setq controller-recording '())
-      (controller-init)
       (setq controller-is-recording t)
+      (controller-init)
       (message "Recording!")
       )
     )
