@@ -16,16 +16,11 @@
 ;;; TODOS
 
 ;;; Essential
+
+;; Init
 ;; TODO Grabber
 ;;; Choose elements on a page to save to a list to be used in Emacs
-;; Bring up a helm window to choose the selector (ID, class, XPATH, etc )
-;; 
-;;; For non repeatable commands if recording mode is active bring up the chooser 
-;; Better recording w/ output
-;; Send Escape
-;; Kill Tab
-;; Reopen last tab
-;; Reload
+;; Send Tab
 
 ;;; Non-Essential
 ;; Add constraints to make sure variables exist and return errors if they do not
@@ -38,6 +33,7 @@
 ;; Mark multiple css selectors when choosing an attribute
 ;; Embed more python in this
 ;; Change find element into find elements
+;; Better recording
 
 ;;; Code:
 
@@ -68,17 +64,9 @@
   (switch-to-buffer "browser-controller")
   (buffer-disable-undo "browser-controller")
   (run-python)
-  (python-shell-send-string "from selenium import webdriver")
-  (python-shell-send-string "from selenium.webdriver.common.by import By")
-  (cond ((string= controller-browser "firefox") (python-shell-send-string "controller = webdriver.Firefox()"))
-	((string= controller-browser "safari") (python-shell-send-string "controller = webdriver.Safari()"))
-	((string= controller-browser "chrome") (python-shell-send-string "controller = webdriver.Chrome()"))
-	)
-  (python-shell-send-string "from selenium.webdriver.common.action_chains import ActionChains")
-  (python-shell-send-string "from selenium.webdriver.common.keys import Keys")
+  (controller-init)
   (python-shell-send-file "controller.py")
   (setq controller-is-recording nil)
-  (setq controller-recording '())
   (controller-resize-browser)
   (controller-mode)
   )
@@ -90,6 +78,9 @@
   (define-key controller-mode-map (kbd "h") 'controller-scroll-left)
   (define-key controller-mode-map (kbd "l") 'controller-scroll-right)
   (define-key controller-mode-map (kbd "i") 'controller-input-mode)
+  (define-key controller-mode-map (kbd "<f5>") 'controller-refresh)
+  (define-key controller-mode-map (kbd "z") 'controller-send-escape)
+  (define-key controller-mode-map (kbd "w") 'controller-close-tab)
   (define-key controller-mode-map (kbd "<return>") 'controller-send-enter)
   (define-key controller-mode-map (kbd "d") 'controller-quit-find)
   (define-key controller-mode-map (kbd "L") 'controller-url-goto)
@@ -102,9 +93,23 @@
   (define-key controller-mode-map (kbd "*") 'controller-highlight)
   (define-key controller-mode-map (kbd "b") 'controller-bookmark-page)
   (define-key controller-mode-map (kbd "t") 'controller-switch-tab)
+  (define-key controller-mode-map (kbd "m") 'controller-print-highlighted)
   )
 
 ;; Unexposed
+(defun controller-init ()
+  "Initialize controller"
+  (send-to-python "from selenium import webdriver")
+  (send-to-python "from selenium.webdriver.common.by import By")
+  (cond ((string= controller-browser "firefox") (send-to-python "controller = webdriver.Firefox()"))
+	((string= controller-browser "safari") (send-to-python "controller = webdriver.Safari()"))
+	((string= controller-browser "chrome") (send-to-python "controller = webdriver.Chrome()"))
+	)
+  (send-to-python "from selenium.webdriver.common.action_chains import ActionChains")
+  (send-to-python "from selenium.webdriver.common.keys import Keys")
+  
+  )
+
 (defun send-to-python ( command &optional arg bypass)
   "Main function to route commands to python"
   (if arg (setq command (format command arg)))
@@ -122,7 +127,6 @@
   "Switch to tab"
   (send-to-python "switch_window_switch(\"%s\", windows)" marker))
 
-(controller-attribute-chooser)
 (defun controller-attribute-chooser ()
   "Choose an attribute for the element."	
   (let ((id (car (send-to-python "element.get_attribute(\"id\")" nil t))) ;; id
@@ -148,7 +152,6 @@
     )
   )
 
-(setq controller-recording (cons command controller-recording))
 ;; Exposed
 
 (defun controller-scroll-down ()
@@ -175,6 +178,11 @@
   (send-to-python "ActionChains(controller).key_down(Keys.RIGHT).perform()")
   )
 
+(defun controller-refresh ()
+  "Scroll Down."
+  (interactive)
+  (send-to-python "ActionChains(controller).key_down(Keys.F5).perform()")
+  )
 (defun controller-input-mode (input)
   "Start Input Mode"
   (interactive "sInput: ")
@@ -192,6 +200,18 @@
   "Send Enter."
   (interactive)
   (send-to-python "ActionChains(controller).send_keys(Keys.ENTER).perform()")
+  )
+
+(defun controller-close-tab ()
+  "Send Enter."
+  (interactive)
+  (send-to-python "controller.close()")
+  )
+
+(defun controller-send-escape ()
+  "Send Escape."
+  (interactive)
+  (send-to-python "ActionChains(controller).send_keys(Keys.ESCAPE).perform()")
   )
 
 (defun controller-backward-history ()
@@ -232,6 +252,12 @@
   (send-to-python "element.click()")
   )
 
+(defun controller-print-highlighted ()
+  "Print the text of this element."
+  (interactive)
+  (send-to-python "print(element.text)")
+  )
+
 (defun controller-bookmark-page ()
   "Bookmark the current page"
   (interactive)
@@ -241,7 +267,7 @@
 (defun controller-highlight ()
   "Highlight Found Element."
   (interactive)
-  (send-to-python "highlight(element)"))
+  (send-to-python "highlight(element)" nil t))
 
 (defun controller-resize-browser ()
   "Resize the browser window."
@@ -281,6 +307,25 @@
           (action . (lambda (candidate)
                       (controller-switch-tab-switch candidate)))))
   (helm :sources '(some-helm-source))
+  )
+
+(defun controller-record ()
+  "Toggle recording"
+  (interactive)
+  (if controller-is-recording
+      (progn
+	(with-current-buffer  (get-buffer-create "*controller-output*")
+	  (mapcar (lambda (line) (insert (format "%s\n" line))) (reverse controller-recording)))
+	(setq controller-is-recording nil)
+	(message "Stopped Recording!")
+	)
+    (progn
+      (setq controller-recording '())
+      (setq controller-is-recording t)
+      (controller-init)
+      (message "Recording!")
+      )
+    )
   )
 
 (provide 'controller)
