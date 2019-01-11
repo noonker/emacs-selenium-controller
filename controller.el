@@ -18,8 +18,6 @@
 ;;; Essential
 
 ;; Init
-;; TODO Grabber
-;;; Choose elements on a page to save to a list to be used in Emacs
 
 ;;; Non-Essential
 ;; Add constraints to make sure variables exist and return errors if they do not
@@ -62,10 +60,10 @@
   (interactive)
   (switch-to-buffer "browser-controller")
   (buffer-disable-undo "browser-controller")
+  (setq controller-is-recording nil)
   (run-python)
   (controller-init)
   (python-shell-send-file "controller.py")
-  (setq controller-is-recording nil)
   (controller-resize-browser)
   (controller-mode)
   )
@@ -76,9 +74,11 @@
   (define-key controller-mode-map (kbd "k") 'controller-scroll-up)
   (define-key controller-mode-map (kbd "h") 'controller-scroll-left)
   (define-key controller-mode-map (kbd "l") 'controller-scroll-right)
+  (define-key controller-mode-map (kbd "p") 'controller-page-up)
+  (define-key controller-mode-map (kbd "n") 'controller-page-down)
   (define-key controller-mode-map (kbd "TAB") 'controller-send-tab)
   (define-key controller-mode-map (kbd "i") 'controller-input-mode)
-  (define-key controller-mode-map (kbd "<f5>") 'controller-refresh)
+  (define-key controller-mode-map (kbd "e") 'controller-refresh)
   (define-key controller-mode-map (kbd "z") 'controller-send-escape)
   (define-key controller-mode-map (kbd "w") 'controller-close-tab)
   (define-key controller-mode-map (kbd "<return>") 'controller-send-enter)
@@ -101,10 +101,15 @@
   "Initialize controller"
   (send-to-python "from selenium import webdriver")
   (send-to-python "from selenium.webdriver.common.by import By")
-  (cond ((string= controller-browser "firefox") (send-to-python "controller = webdriver.Firefox()"))
-	((string= controller-browser "safari") (send-to-python "controller = webdriver.Safari()"))
-	((string= controller-browser "chrome") (send-to-python "controller = webdriver.Chrome()"))
+  (let (( browser-command "controller = webdriver.Firefox()" )) 
+    (cond ((string= controller-browser "firefox") (setq browser-command "controller = webdriver.Firefox()"))
+	  ((string= controller-browser "safari") (setq browser-command "controller = webdriver.Safari()"))
+	  ((string= controller-browser "chrome") (setq browser-command "controller = webdriver.Chrome()")))
+    (if controller-is-recording
+	(setq controller-recording (cons browser-command controller-recording))
+      (send-to-python browser-command)
 	)
+    )
   (send-to-python "from selenium.webdriver.common.action_chains import ActionChains")
   (send-to-python "from selenium.webdriver.common.keys import Keys")
   
@@ -118,9 +123,10 @@
   (remove "" (split-string (python-shell-send-string-no-output (format "%s" command)) "\n"))
   )
 
-(defun controller-find-click (marker)
+(defun controller-marker-focus-and-click (marker)
   "click on the thing"
-  (send-to-python "click_marker(\"%s\", markers)" marker)
+  (python-shell-send-string-no-output (format "element = select_marker(\"%s\", markers)" marker))
+  (send-to-python "element.click()")
   )
 
 (defun controller-switch-tab-switch (marker)
@@ -154,13 +160,13 @@
 
 ;; Exposed
 
-(defun controller-scroll-down ()
+(defun controller-page-down ()
   "Scroll Down."
   (interactive)
   (send-to-python "ActionChains(controller).key_down(Keys.PAGE_DOWN).perform()")
   )
 
-(defun controller-scroll-up ()
+(defun controller-page-up ()
   "Scroll Up."
   (interactive)
   (send-to-python "ActionChains(controller).key_down(Keys.PAGE_UP).perform()")
@@ -178,10 +184,22 @@
   (send-to-python "ActionChains(controller).key_down(Keys.RIGHT).perform()")
   )
 
+(defun controller-scroll-up ()
+  "Scroll Left."
+  (interactive)
+  (send-to-python "ActionChains(controller).key_down(Keys.LEFT).perform()")
+  )
+
+(defun controller-scroll-down ()
+  "Scroll Right."
+  (interactive)
+  (send-to-python "ActionChains(controller).key_down(Keys.RIGHT).perform()")
+  )
+
 (defun controller-refresh ()
   "Scroll Down."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.F5).perform()")
+  (send-to-python "controller.refresh()")
   )
 (defun controller-input-mode (input)
   "Start Input Mode"
@@ -244,7 +262,7 @@
   (python-shell-send-string "temp = temp[0]")
   (setq options (split-string (python-shell-send-string-no-output "print(temp.text)")))
   (setq some-helm-source
-	'((name . "HELM at the Emacs")
+	'((name . "Guided Search")
           (candidates . options)
           (action . (lambda (candidate)
                       (controller-search-in-page candidate)))))
@@ -286,21 +304,24 @@
 (defun controller-find ()
   "Highlight elements on the page and open a helm window for selection"
   (interactive)
-  (send-to-python "markers = create_markers(controller)")
-  (setq options (split-string (send-to-python "print(\" \".join(markers.keys()))")))
+  (python-shell-send-string-no-output "markers = create_markers(controller)")
+  (setq options (split-string (python-shell-send-string-no-output "print(\" \".join(markers.keys()))")))
   (setq some-helm-source
-	'((name . "HELM at the Emacs")
+	'((name . "Choose Element")
           (candidates . options)
           (action . (lambda (candidate)
-                      (controller-find-click candidate)))))
+                      (controller-marker-focus-and-click candidate)))))
   (helm :sources '(some-helm-source))
+  (if controller-is-recording
+      (controller-attribute-chooser)
+      )
   (controller-quit-find)
   )
 
 (defun controller-quit-find ()
   "Quit find mode"
   (interactive)
-  (send-to-python "close_markers(controller)")
+  (python-shell-send-string "close_markers(controller)")
   )
 
 (defun controller-switch-tab ()
@@ -308,7 +329,7 @@
   (interactive)
   (setq options (split-string (send-to-python "windows = switch_window(controller)") "\n"))
   (setq some-helm-source
-	'((name . "HELM at the Emacs")
+	'((name . "Choose Tab")
           (candidates . options)
           (action . (lambda (candidate)
                       (controller-switch-tab-switch candidate)))))
@@ -327,8 +348,8 @@
 	)
     (progn
       (setq controller-recording '())
-      (setq controller-is-recording t)
       (controller-init)
+      (setq controller-is-recording t)
       (message "Recording!")
       )
     )

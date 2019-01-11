@@ -51,8 +51,8 @@ def create_markers(controller):
     controller.execute_script(script)
     return mapping
 
-def click_marker(tag, markers):
-    markers[tag].click()
+def select_marker(tag, markers):
+    return markers[tag]
     
 def close_markers(controller):
     controller.execute_script("""var element = document.getElementById("emacsControllerClickables");
@@ -75,4 +75,3 @@ def switch_window_switch(value, windows):
         if windows[window] == value:
             selected = window
     controller.switch_to_window(selected)
-    
