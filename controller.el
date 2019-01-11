@@ -20,7 +20,6 @@
 ;; Init
 ;; TODO Grabber
 ;;; Choose elements on a page to save to a list to be used in Emacs
-;; Send Tab
 
 ;;; Non-Essential
 ;; Add constraints to make sure variables exist and return errors if they do not
@@ -77,6 +76,7 @@
   (define-key controller-mode-map (kbd "k") 'controller-scroll-up)
   (define-key controller-mode-map (kbd "h") 'controller-scroll-left)
   (define-key controller-mode-map (kbd "l") 'controller-scroll-right)
+  (define-key controller-mode-map (kbd "TAB") 'controller-send-tab)
   (define-key controller-mode-map (kbd "i") 'controller-input-mode)
   (define-key controller-mode-map (kbd "<f5>") 'controller-refresh)
   (define-key controller-mode-map (kbd "z") 'controller-send-escape)
@@ -214,6 +214,12 @@
   (send-to-python "ActionChains(controller).send_keys(Keys.ESCAPE).perform()")
   )
 
+(defun controller-send-tab ()
+  "Send Escape."
+  (interactive)
+  (send-to-python "ActionChains(controller).send_keys(Keys.TAB).perform()")
+  )
+
 (defun controller-backward-history ()
   "Go Back."
   (interactive)
@@ -310,7 +316,7 @@
   )
 
 (defun controller-record ()
-  "Toggle recording"
+  "Toggle recording."
   (interactive)
   (if controller-is-recording
       (progn
