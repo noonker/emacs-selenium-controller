@@ -42,7 +42,8 @@
   )
 
 (defvar controller-browser "firefox"
-  "default browser to be used for webdriver")
+  "default browser to be used for webdriver"
+  )
 
 (defcustom controller-history '()
   "history of URLs navigated to"
@@ -94,6 +95,7 @@
   (define-key controller-mode-map (kbd "b") 'controller-bookmark-page)
   (define-key controller-mode-map (kbd "t") 'controller-switch-tab)
   (define-key controller-mode-map (kbd "m") 'controller-print-highlighted)
+  (define-key controller-mode-map (kbd "T") 'controller-new-tab)
   )
 
 ;; Unexposed
@@ -213,6 +215,12 @@
   (setq controller-history (cons input controller-history))
   )
 
+(defun controller-new-tab ()
+  "Open new tab"
+  (interactive)
+  (send-to-python "controller.execute_script(\"window.open('https://google.com');\")")
+  )
+
 (defun controller-send-enter ()
   "Send Enter."
   (interactive)
@@ -259,7 +267,7 @@
   (interactive)
   (python-shell-send-string "temp = controller.find_elements(By.TAG_NAME, \"body\")")
   (python-shell-send-string "temp = temp[0]")
-  (setq options (split-string (python-shell-send-string-no-output "print(temp.text)")))
+  (setq options (split-string (python-shell-send-string-no-output "print(temp.text)") "\n"))
   (setq some-helm-source
 	'((name . "Guided Search")
           (candidates . options)

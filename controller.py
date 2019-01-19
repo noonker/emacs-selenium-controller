@@ -60,7 +60,10 @@ def close_markers(controller):
     return True
 
 def switch_window(controller):
-    current_window = controller.current_window_handle
+    try:
+        current_window = controller.current_window_handle
+    except:
+        current_window = controller.window_handles[0]
     titles = {}
     for window in controller.window_handles:
         controller.switch_to.window(window)
