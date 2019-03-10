@@ -81,7 +81,7 @@
   (define-key controller-mode-map (kbd "i") 'controller-input-mode)
   (define-key controller-mode-map (kbd "e") 'controller-refresh)
   (define-key controller-mode-map (kbd "z") 'controller-send-escape)
-  (define-key controller-mode-map (kbd "w") 'controller-close-tab)
+  (define-key controller-mode-map (kbd "W") 'controller-close-tab)
   (define-key controller-mode-map (kbd "<return>") 'controller-send-enter)
   (define-key controller-mode-map (kbd "d") 'controller-quit-find)
   (define-key controller-mode-map (kbd "L") 'controller-url-goto)
@@ -97,6 +97,7 @@
   (define-key controller-mode-map (kbd "t") 'controller-switch-tab)
   (define-key controller-mode-map (kbd "m") 'controller-print-highlighted)
   (define-key controller-mode-map (kbd "T") 'controller-new-tab)
+  (define-key controller-mode-map (kbd ".") 'controller-wait-for)
   )
 
 ;; Unexposed
@@ -104,6 +105,9 @@
   "Initialize controller"
   (send-to-python "from selenium import webdriver")
   (send-to-python "from selenium.webdriver.common.by import By")
+  (send-to-python "from selenium.webdriver.support.ui import WebDriverWait")
+  (send-to-python "from selenium.webdriver.support import expected_conditions as EC")
+  
   (let (( browser-command "controller = webdriver.Firefox()" )) 
     (cond ((string= controller-browser "firefox") (setq browser-command "controller = webdriver.Firefox()"))
 	  ((string= controller-browser "safari") (setq browser-command "controller = webdriver.Safari()"))
@@ -135,6 +139,31 @@
   "Switch to tab"
   (send-to-python "switch_window_switch(\"%s\", windows)" marker))
 
+(defun controller-wait-chooser ()
+  "Choose an attribute for a wait"
+  (let ((id (car (send-to-python "element.get_attribute(\"id\")" nil t))) ;; id
+	(class (car (send-to-python "element.get_attribute(\"class\")" nil t))) ;; class name
+	;; TODO css selector
+	(name (car (send-to-python "element.get_attribute(\"name\")" nil t))) ;; name
+	;; TODO xpath
+	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
+	(link (car (send-to-python "element.get_attribute(\"href\")" nil t))));; link text
+    (setq options `((,(format "id - %s" id) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.ID, %s)))" id))
+		    (,(format "class - %s" class) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.CLASS, %s)))" class))
+		    (,(format "name - %s" name) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.NAME, %s)))" name))
+		    (,(format "tag - %s" tag) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.TAG_NAME, %s)))" tag))
+		    (,(format "link - %s" link) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.LINK_TEXT, %s)))" link))
+		    ))
+    ;; TODO partial link text
+    (setq helm-attribute-chooser
+	  `((name . "Choose a selector to add to the recording")
+            (candidates . ,(mapcar 'car options))
+            (action . (lambda (candidate)
+			(setq controller-recording (cons (cdr (assoc candidate options)) controller-recording))))))
+    (helm :sources '(helm-attribute-chooser))
+    )
+  )
+
 (defun controller-attribute-chooser ()
   "Choose an attribute for the element."	
   (let ((id (car (send-to-python "element.get_attribute(\"id\")" nil t))) ;; id
@@ -145,7 +174,7 @@
 	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
 	(link (car (send-to-python "element.get_attribute(\"href\")" nil t))));; link text
     (setq options `((,(format "id - %s" id) . ,(format "element = controller.find_element_by_id(%s)" id))
-		    (,(format "class - %s" class) . ,(format "element = controller.find_element_by_class(%s)" class))
+		    (,(format "class - %s" class) . ,(format "element = controller.find_element_by_class_name(%s)" class))
 		    (,(format "name - %s" name) . ,(format "element = controller.find_element_by_name(%s)" name))
 		    (,(format "tag - %s" tag) . ,(format "element = controller.find_element_by_tag_name(%s)" tag))
 		    (,(format "link - %s" link) . ,(format "element =controller.find_element_by_link_text(%s)" link))
@@ -316,11 +345,29 @@
   (send-to-python "controller.set_window_size(resolution['width'], resolution['height'] * .8)")
   )
 
+(defun controller-wait-for ()
+  "Highlight elements on the page and open a helm window for selection"
+  (interactive)
+  (python-shell-send-string-no-output "markers = create_markers(controller)")
+  (setq options (reverse (split-string (python-shell-send-string-no-output "print(\" \".join(markers.keys()))"))))
+  (setq some-helm-source
+	'((name . "Choose Element")
+          (candidates . options)
+          (action . (lambda (candidate)
+                      (controller-marker-focus candidate)))))
+  (progn
+    (helm :sources '(some-helm-source))
+    (if controller-is-recording
+	(controller-wait-chooser)))
+  (controller-quit-find)
+  (controller-highlight)
+  )
+
 (defun controller-find ()
   "Highlight elements on the page and open a helm window for selection"
   (interactive)
   (python-shell-send-string-no-output "markers = create_markers(controller)")
-  (setq options (split-string (python-shell-send-string-no-output "print(\" \".join(markers.keys()))")))
+  (setq options (reverse (split-string (python-shell-send-string-no-output "print(\" \".join(markers.keys()))"))))
   (setq some-helm-source
 	'((name . "Choose Element")
           (candidates . options)
