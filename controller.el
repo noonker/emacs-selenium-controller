@@ -93,6 +93,7 @@
   (define-key controller-mode-map (kbd "c") 'controller-click-highlighted)
   (define-key controller-mode-map (kbd "*") 'controller-highlight)
   (define-key controller-mode-map (kbd "b") 'controller-bookmark-page)
+  (define-key controller-mode-map (kbd "B") 'controller-break)
   (define-key controller-mode-map (kbd "t") 'controller-switch-tab)
   (define-key controller-mode-map (kbd "m") 'controller-print-highlighted)
   (define-key controller-mode-map (kbd "T") 'controller-new-tab)
@@ -160,6 +161,13 @@
   )
 
 ;; Exposed
+
+(defun controller-break ()
+  "Break program for things like captcha"
+  (interactive)
+  (setq controller-recording (cons "input('Press enter to to continue.')" controller-recording))
+  (message "Break inserted")
+  )
 
 (defun controller-page-down ()
   "Scroll Down."
