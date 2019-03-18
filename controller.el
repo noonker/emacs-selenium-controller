@@ -130,6 +130,8 @@
   (remove "" (split-string (python-shell-send-string-no-output (format "%s" command)) "\n"))
   )
 
+
+
 (defun controller-marker-focus (marker)
   "click on the thing"
   (python-shell-send-string-no-output (format "element = select_marker(\"%s\", markers)" marker))
@@ -149,7 +151,7 @@
 	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
 	(link (car (send-to-python "element.get_attribute(\"href\")" nil t))));; link text
     (setq options `((,(format "id - %s" id) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.ID, %s)))" id))
-		    (,(format "class - %s" class) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.CLASS, %s)))" class))
+		    (,(format "class - %s" class) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.CLASS_NAME, %s)))" class))
 		    (,(format "name - %s" name) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.NAME, %s)))" name))
 		    (,(format "tag - %s" tag) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.TAG_NAME, %s)))" tag))
 		    (,(format "link - %s" link) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.LINK_TEXT, %s)))" link))
@@ -172,12 +174,15 @@
 	(name (car (send-to-python "element.get_attribute(\"name\")" nil t))) ;; name
 	;; TODO xpath
 	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
-	(link (car (send-to-python "element.get_attribute(\"href\")" nil t))));; link text
+	(link (car (send-to-python "element.get_attribute(\"href\")" nil t)))
+	(text (car (send-to-python "element.text" nil t)))
+	);; link text
     (setq options `((,(format "id - %s" id) . ,(format "element = controller.find_element_by_id(%s)" id))
 		    (,(format "class - %s" class) . ,(format "element = controller.find_element_by_class_name(%s)" class))
 		    (,(format "name - %s" name) . ,(format "element = controller.find_element_by_name(%s)" name))
 		    (,(format "tag - %s" tag) . ,(format "element = controller.find_element_by_tag_name(%s)" tag))
-		    (,(format "link - %s" link) . ,(format "element =controller.find_element_by_link_text(%s)" link))
+		    (,(format "text - %s" text) . ,(format "element =controller.find_element_by_link_text(%s)" text))
+		    (,(format "link - %s" link) . ,(format "element =controller.get(%s)" link))
 		    ))
     ;; TODO partial link text
     (setq helm-attribute-chooser
