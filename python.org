@@ -1,0 +1,386 @@
+* Functions
+#+name: apply_style
+#+begin_src python :session browser-controller 
+def apply_style(driver, element):
+    driver.execute_script("arguments[0].setAttribute('style', arguments[1]);",
+                          element, "background: yellow; border: 2px solid red;")
+    original_style = element.get_attribute('style')
+#+end_src 
+
+#+name: highlight
+#+begin_src python :session browser-controller
+def highlight(element):
+    """Highlights (blinks) a Selenium Webdriver element"""
+    driver = element._parent
+    def apply_style(s):
+        driver.execute_script("arguments[0].setAttribute('style', arguments[1]);",
+                              element, s)
+    original_style = element.get_attribute('style')
+    apply_style("background: yellow; border: 2px solid red;")
+#+end_src 
+
+#+name: generate_tags
+#+begin_src python :session browser-controller
+import string
+
+def generate_tags(number):
+    letters = list(string.ascii_lowercase)
+    letters.extend([i+b for i in letters for b in letters])
+    return letters[:number]
+#+end_src 
+
+#+name: create_markers
+#+begin_src python :session browser-controller
+def create_markers(controller):    
+    script = """
+var btn = document.createElement("DIV");
+var t = document.createTextNode("");
+btn.appendChild(t);
+btn.id = "emacsControllerClickables"
+"""
+    elem = """
+var span = document.createElement("SPAN")
+var t = document.createTextNode("{}")
+span.appendChild(t)
+span.style.cssText = "position: absolute; display: block; top: {}px; left: {}px; white-space: nowrap; overflow: hidden; font-size: 12px; padding: 1px 3px 0px 3px; background: linear-gradient(to bottom, #FF1493 0%,#FF69B4 100%); border: solid 1px #C38A22; border-radius: 3px; box-shadow: 0px 3px 7px 0px rgba(0, 0, 0, 0.3); color: white; z-index: 10000"
+btn.appendChild(span)
+"""
+    mapping = {}
+    clickables = controller.find_elements_by_tag_name("a")
+    clickables = clickables + controller.find_elements_by_tag_name("button")
+    clickables = clickables + controller.find_elements_by_tag_name("input")
+    tags = generate_tags(len(clickables))
+    for element in clickables:
+        tag_name = tags.pop()
+        mapping[tag_name] = element
+        script = script + elem.format(
+            tag_name,
+            element.location["y"],
+            element.location["x"])
+    script = script + "document.body.appendChild(btn);"
+    controller.execute_script(script)
+    return mapping
+#+end_src 
+
+#+name: select_marker
+#+begin_src python :session browser-controller
+def select_marker(tag, markers):
+    return markers[tag]
+#+end_src 
+
+#+name: close_markers
+#+begin_src python :session browser-controller
+def close_markers(controller):
+    controller.execute_script("""var element = document.getElementById("emacsControllerClickables");
+    element.parentNode.removeChild(element);""")
+    return True
+#+end_src 
+
+#+name: switch_window
+#+begin_src python :session browser-controller
+def switch_window(controller):
+    try:
+        current_window = controller.current_window_handle
+    except:
+        current_window = controller.window_handles[0]
+    titles = {}
+    for window in controller.window_handles:
+        controller.switch_to.window(window)
+        titles[window] = controller.title
+    controller.switch_to.window(current_window)
+    for title in titles.values():
+        print(title)
+    return titles
+#+end_src 
+
+#+name: switch_window_switch
+#+begin_src python :session browser-controller
+def switch_window_switch(value, windows):
+    for window in windows:
+        if windows[window] == value:
+            selected = window
+    controller.switch_to_window(selected)
+#+end_src 
+
+* Behavior
+#+name: current_url
+#+begin_src python :session browser-controller
+controller.current_url
+#+end_src
+
+#+name: browser_choice
+#+begin_src python :session browser-controller
+browser = "%s"
+#+end_src
+
+#+name: initialize
+#+begin_src python :session browser-controller
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import json
+
+if browser == "firefox":
+    controller = webdriver.Firefox()
+elif browser == "safari":
+    controller = webdriver.Safari()
+elif browser == "chrome":
+    controller = webdriver.Chrome()
+else:
+    raise BaseException
+
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+#+end_src 
+
+#+name: marker_focus
+#+begin_src python :session browser-controller
+element = select_marker("%s", markers)
+#+end_src
+
+#+name: switch_window_switch
+#+begin_src python :session browser-controller
+switch_window_switch("%s", windows)
+#+end_src
+
+#+name: get_element_id
+#+begin_src python :session browser-controller
+element.get_attribute("id")
+#+end_src
+
+#+name: get_element_class
+#+begin_src python :session browser-controller
+element.get_attribute("class")
+#+end_src
+
+#+name: get_element_name
+#+begin_src python :session browser-controller
+element.get_attribute("name")
+#+end_src
+
+#+name: get_element_tag
+#+begin_src python :session browser-controller
+element.tag_name
+#+end_src
+
+#+name: get_element_link
+#+begin_src python :session browser-controller
+element.get_attribute("href")
+#+end_src
+
+#+name: get_element_text
+#+begin_src python :session browser-controller
+element.text
+#+end_src
+
+#+name: page_down
+#+begin_src python :session browser-controller
+ActionChains(controller).key_down(Keys.PAGE_DOWN).perform()
+#+end_src
+
+#+name: page_up
+#+begin_src python :session browser-controller
+ActionChains(controller).key_down(Keys.PAGE_UP).perform()
+#+end_src
+
+#+name: scroll_left
+#+begin_src python :session browser-controller
+ActionChains(controller).key_down(Keys.LEFT).perform()
+#+end_src
+
+#+name: scroll_right
+#+begin_src python :session browser-controller
+ActionChains(controller).key_down(Keys.RIGHT).perform()
+#+end_src
+
+#+name: scroll_up
+#+begin_src python :session browser-controller
+ActionChains(controller).key_down(Keys.UP).perform()
+#+end_src
+
+#+name: scroll_down
+#+begin_src python :session browser-controller
+ActionChains(controller).key_down(Keys.DOWN).perform()
+#+end_src
+
+#+name: refresh
+#+begin_src python :session browser-controller
+controller.refresh()
+#+end_src
+
+#+name: send_input
+#+begin_src python :session browser-controller
+ActionChains(controller).send_keys("%s").perform()
+#+end_src
+
+#+name: url_nav
+#+begin_src python :session browser-controller
+controller.get("%s")
+#+end_src
+
+#+name: new_tab
+#+begin_src python :session browser-controller
+controller.execute_script("window.open('https://google.com');")
+#+end_src
+
+#+name: send_enter
+#+begin_src python :session browser-controller
+ActionChains(controller).send_keys(Keys.ENTER).perform()
+#+end_src
+
+#+name: close_tab
+#+begin_src python :session browser-controller
+controller.close()
+#+end_src
+
+#+name: send_escape
+#+begin_src python :session browser-controller
+ActionChains(controller).send_keys(Keys.ESCAPE).perform()
+#+end_src
+
+#+name: send_tab
+#+begin_src python :session browser-controller
+ActionChains(controller).send_keys(Keys.TAB).perform()
+#+end_src
+
+#+name: backward_history
+#+begin_src python :session browser-controller
+controller.back()
+#+end_src
+
+#+name: forward_history
+#+begin_src python :session browser-controller
+controller.forward()
+#+end_src
+
+#+name: search_in_page
+#+begin_src python :session browser-controller
+element = controller.find_element_by_xpath("//*[contains(text(), '%s')]")
+#+end_src
+
+#+name: guided_search
+#+begin_src python :session browser-controller
+temp = controller.find_elements(By.TAG_NAME, "body")
+temp = temp[0]
+print temp.text
+#+end_src
+
+#+name: click_highlighted
+#+begin_src python :session browser-controller
+element.click()
+#+end_src
+
+#+name: print_highlighted
+#+begin_src python :session browser-controller
+print(element.text)
+#+end_src
+
+#+name: resize_browser
+#+begin_src python :session browser-controller
+controller.maximize_window()
+resolution = controller.get_window_size()
+controller.set_window_size(resolution['width'], resolution['height'] * .8)
+#+end_src
+
+#+name: start_find
+#+begin_src python :session browser-controller
+markers = create_markers(controller)
+#+end_src
+
+#+name: quit_find
+#+begin_src python :session browser-controller
+close_markers(controller)
+#+end_src
+
+#+name: switch_tab
+#+begin_src python :session browser-controller
+windows = switch_window(controller)
+#+end_src
+
+#+name: highlight_element
+#+begin_src python :session browser-controller
+highlight(element)
+#+end_src
+
+#+name: return_keys
+#+begin_src python :session browser-controller
+print(" ".join(markers.keys()))
+#+end_src
+
+#+name: get_page_source
+#+begin_src python :session browser-controller
+print(controller.page_source)
+#+end_src
+
+#+name: get_cookies
+#+begin_src python :session browser-controller
+json.dumps(controller.get_cookies())
+#+end_src
+
+#+name: replace_cookie
+#+begin_src python :session browser-controller
+controller.delete_cookie("%s")
+controller.add_cookie(%s)
+#+end_src
+* Lookup Only Behavior
+** Waits
+#+name: wait_id_selection
+#+begin_src python :session browser-controller
+element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.ID, "%s")))
+#+end_src
+
+#+name: wait_class_selection
+#+begin_src python :session browser-controller
+element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.CLASS_NAME, "%s")))
+#+end_src
+
+#+name: wait_name_selection
+#+begin_src python :session browser-controller
+element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.NAME, "%s")))
+#+end_src
+
+#+name: wait_tag_selection 
+#+begin_src python :session browser-controller
+element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.TAG_NAME, "%s")))
+#+end_src
+
+#+name: wait_link_selection
+#+begin_src python :session browser-controller
+element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.LINK_TEXT, "%s")))
+#+end_src
+** Finds
+#+name: find_id_selection
+#+begin_src python :session browser-controller
+element = controller.find_element_by_id("%s")
+#+end_src
+
+#+name: find_class_selection
+#+begin_src python :session browser-controller
+element = controller.find_element_by_class_name("%s")
+#+end_src
+
+#+name: find_name_selection
+#+begin_src python :session browser-controller
+element = controller.find_element_by_name("%s")
+#+end_src
+
+#+name: find_tag_selection
+#+begin_src python :session browser-controller
+element = controller.find_element_by_tag_name("%s")
+#+end_src
+
+#+name: find_text_selection
+#+begin_src python :session browser-controller
+element = controller.find_element_by_link_text("%s")
+#+end_src
+
+#+name: find_link_selection
+#+begin_src python :session browser-controller
+element = controller.get("%s")
+#+end_src
+** Misc
+#+name: break
+#+begin_src python :session browser-controller
+input('Press enter to to continue.')
+#+end_src

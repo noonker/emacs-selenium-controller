@@ -2,7 +2,7 @@
 
 ;; Author: "Joshua Person" <noonker@pm.me>
 ;; Time-stamp: <09 January 2019>
-;; Version: 0.1
+;; Version: 0.2
 
 ;;; Commentary:
 
@@ -16,58 +16,72 @@
 ;;; TODOS
 
 ;;; Essential
-
-;; Init
+;; Implement a cookie editor
+;; Allow controlling multiple browsers
+;; - This will likely mean putting all controllers in a list
+;; - Maybe have them be named and allow specification of which browser gets which action
+;; - ..and doing something like a foreach on each of the browser objects
+;; More interactive browser controller window
+;; - Right now this is just a black box.  What I'd ideally like this to do is display some browser
+;; - ..information or be a small window IN the modeline
+;; Support browsermob proxy
+;; Support selenium profiles
+;; Allow saving of history
+;; Script browser and runner
+;; Implement persistence mechanisms.  Currently all the things are lost on restart
+;; Recording rework
+;; Same REPL for org bufer and running code
+;; Decouple init from python implementation
 
 ;;; Non-Essential
+;; Figure out how to work around locking issues
+;; Figure out the structure of actual Emacs packages. (I don't think it's requre AND load-file)
 ;; Add constraints to make sure variables exist and return errors if they do not
-;; Default https:// prefix for URL entry
 ;; Better bookmarks
 ;; Figure out better find options.  Currently find mode is pretty finnicky.
 ;; Enable support for browser addons
 ;; Support pass https://github.com/NicolasPetton/pass mode for scripts
 ;; Auto resize windows to something that makes sense
 ;; Mark multiple css selectors when choosing an attribute
-;; Embed more python in this
+;; User Agent Switching
+;; Header Modification
 ;; Change find element into find elements
-;; Better recording
+;; Special Keys - Helm chooser
+;; Undo
+;; Pseudocode e.c. "went to firefox.com clicked on "log in"
+;; Grid Integration
+;; Captcha Alert- STOP when captcha encoundered and let user do the captcha before continting
 
 ;;; Code:
 
+;;; Imports
 
+;; (require 'controller-python)
+;; (require 'controller-cookies)
+(load-file "./controller-python.el")
+;; (load-file "./controller-cookies.el")
+(require 'json)
+
+;;; Mode-Related Code
 (defgroup controller-mode nil
   "controller-mode variable group"
   :prefix "controller-"
   :group 'applications
   )
 
-(defvar controller-browser "firefox"
-  "default browser to be used for webdriver"
-  )
+(defvar controller-browser "firefox" "Default browser to be used for webdriver.")
+(defvar controller-implementation "python" "Default implentation to use.")
+(defvar controller-is-recording nil)
 
 (defcustom controller-history '()
-  "history of URLs navigated to"
+  "History of URLs navigated to."
   :group 'controller-mode
   :type 'listp)
 
 (defcustom controller-bookmarks '()
-  "bookmarked websites"
+  "Bookmarked websites."
   :group 'controller-mode
   :type 'listp)
-
-
-(defun browser-controller ()
-  "Browser Controller."
-  (interactive)
-  (switch-to-buffer "browser-controller")
-  (buffer-disable-undo "browser-controller")
-  (setq controller-is-recording nil)
-  (run-python)
-  (controller-init)
-  (python-shell-send-file "/home/user/git/emacs-selenium-controller/controller.py")
-  (controller-resize-browser)
-  (controller-mode)
-  )
 
 (define-derived-mode controller-mode special-mode "controller-mode"
   (define-key controller-mode-map (kbd "f") 'controller-find)
@@ -97,64 +111,77 @@
   (define-key controller-mode-map (kbd "t") 'controller-switch-tab)
   (define-key controller-mode-map (kbd "m") 'controller-print-highlighted)
   (define-key controller-mode-map (kbd "T") 'controller-new-tab)
-  (define-key controller-mode-map (kbd ".") 'controller-wait-for)
-  )
+  (define-key controller-mode-map (kbd ".") 'controller-wait-for))
 
-;; Unexposed
+;; Program Entrypoint
+(defun browser-controller ()
+  "This is the entrypoint for the browser controller."
+  (interactive)
+  (switch-to-buffer "browser-controller")
+  (buffer-disable-undo "browser-controller")
+  (setq controller-is-recording nil)
+  (run-python)
+  (controller-init)
+  (controller-resize-browser)
+  (controller-mode))
+
+;;; Routing Functions
+(defun controller-execute (command &optional arg bypass)
+  "This is the main entrypoint for executing code in the Python abstraction.
+  Given some COMMAND name the actual function is loaded from it's org source
+  block in <controller-implementation>.org and run.
+  Pass an optional ARG to have the code block automatically formatted.
+  Passing BYPASS means it will not be added to the recording list if in
+  recording mode."
+  (if (string= controller-implementation "python")
+      (controller-execute-python command arg bypass)))
+
+(defun controller-get (command &optional arg)
+  "This is the main entrypoint for getting code abstraction.
+   Given some COMMAND name the actual function is loaded from it's org source
+   block in <controller-implementation>.org.
+   Pass an optional ARG to have the code block automatically formatted."
+  (if (string= controller-implementation "python")
+      (controller-python-get command arg)))
+
+;; Unexposed Functions
 (defun controller-init ()
-  "Initialize controller"
-  (send-to-python "from selenium import webdriver")
-  (send-to-python "from selenium.webdriver.common.by import By")
-  (send-to-python "from selenium.webdriver.support.ui import WebDriverWait")
-  (send-to-python "from selenium.webdriver.support import expected_conditions as EC")
-  
-  (let (( browser-command "controller = webdriver.Firefox()" )) 
-    (cond ((string= controller-browser "firefox") (setq browser-command "controller = webdriver.Firefox()"))
-	  ((string= controller-browser "safari") (setq browser-command "controller = webdriver.Safari()"))
-	  ((string= controller-browser "chrome") (setq browser-command "controller = webdriver.Chrome()")))
-    (if controller-is-recording
-	(setq controller-recording (cons browser-command controller-recording))
-      (send-to-python browser-command)
-	)
-    )
-  (send-to-python "from selenium.webdriver.common.action_chains import ActionChains")
-  (send-to-python "from selenium.webdriver.common.keys import Keys")
-  
-  )
-
-(defun send-to-python ( command &optional arg bypass)
-  "Main function to route commands to python"
-  (if arg (setq command (format command arg)))
-  (if (and controller-is-recording (not bypass))
-      (setq controller-recording (cons command controller-recording)))
-  (remove "" (split-string (python-shell-send-string-no-output (format "%s" command)) "\n"))
-  )
-
-
+  "Initialize a new browser window."
+  (controller-execute "browser_choice")
+  (controller-execute "apply_style" nil t)
+  (controller-execute "highlight" nil t)
+  (controller-execute "create_markers" nil t)
+  (controller-execute "select_marker" nil t)
+  (controller-execute "close_markers" nil t)
+  (controller-execute "switch_window" nil t)
+  (controller-execute "switch_window_switch" nil t)
+  (controller-execute "generate_tags" nil t)
+  (controller-execute "browser_choice" controller-browser)
+  (controller-execute "initialize"))
 
 (defun controller-marker-focus (marker)
   "click on the thing"
-  (python-shell-send-string-no-output (format "element = select_marker(\"%s\", markers)" marker))
-  )
+  (controller-execute "marker_focus" marker t))
 
 (defun controller-switch-tab-switch (marker)
   "Switch to tab"
-  (send-to-python "switch_window_switch(\"%s\", windows)" marker))
+  (controller-execute "switch_window_switch"))
 
 (defun controller-wait-chooser ()
   "Choose an attribute for a wait"
-  (let ((id (car (send-to-python "element.get_attribute(\"id\")" nil t))) ;; id
-	(class (car (send-to-python "element.get_attribute(\"class\")" nil t))) ;; class name
+  (let ((id (car (controller-execute "get_element_id" nil t))) ;; id
+	(class (car (controller-execute "get_element_class" nil t))) ;; class name
 	;; TODO css selector
-	(name (car (send-to-python "element.get_attribute(\"name\")" nil t))) ;; name
+	(name (car (controller-execute "get_element_name" nil t))) ;; name
 	;; TODO xpath
-	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
-	(link (car (send-to-python "element.get_attribute(\"href\")" nil t))));; link text
-    (setq options `((,(format "id - %s" id) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.ID, %s)))" id))
-		    (,(format "class - %s" class) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.CLASS_NAME, %s)))" class))
-		    (,(format "name - %s" name) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.NAME, %s)))" name))
-		    (,(format "tag - %s" tag) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.TAG_NAME, %s)))" tag))
-		    (,(format "link - %s" link) . ,(format "element = WebDriverWait(controller, 20).until(EC.presence_of_element_located((By.LINK_TEXT, %s)))" link))
+	(tag (car (controller-execute "get_element_tag" nil t))) ;; tag name
+	(link (car (controller-execute "get_element_link" nil t))) ;; link text
+	(options nil))
+    (setq options `((,(format "id - %s" id) . ,(controller-get "wait_id_selection" id))
+		    (,(format "class - %s" class) . ,(controller-get "wait_class_selection" class))
+		    (,(format "name - %s" name) . ,(controller-get "wait_name_selection" name))
+		    (,(format "tag - %s" tag) . ,(controller-get "wait_tag_selection" tag))
+		    (,(format "link - %s" link) . ,(controller-get "wait_link_selection" link))
 		    ))
     ;; TODO partial link text
     (setq helm-attribute-chooser
@@ -162,27 +189,26 @@
             (candidates . ,(mapcar 'car options))
             (action . (lambda (candidate)
 			(setq controller-recording (cons (cdr (assoc candidate options)) controller-recording))))))
-    (helm :sources '(helm-attribute-chooser))
-    )
-  )
+    (helm :sources '(helm-attribute-chooser))))
 
 (defun controller-attribute-chooser ()
   "Choose an attribute for the element."	
-  (let ((id (car (send-to-python "element.get_attribute(\"id\")" nil t))) ;; id
-	(class (car (send-to-python "element.get_attribute(\"class\")" nil t))) ;; class name
+  (let ((id (car (controller-execute "get_element_id" nil t))) ;; id
+	(class (car (controller-execute "get_element_class" nil t))) ;; class name
 	;; TODO css selector
-	(name (car (send-to-python "element.get_attribute(\"name\")" nil t))) ;; name
+	(name (car (controller-execute "get_element_name" nil t))) ;; name
 	;; TODO xpath
-	(tag (car (send-to-python "element.tag_name" nil t))) ;; tag name
-	(link (car (send-to-python "element.get_attribute(\"href\")" nil t)))
-	(text (car (send-to-python "element.text" nil t)))
+	(tag (car (controller-execute "get_element_tag" nil t))) ;; tag name
+	(link (car (controller-execute "get_element_link" nil t))) ;; link text
+	(text (car (controller-execute "get_element_text" nil t))) ;; tag text
+	(options nil)
 	);; link text
-    (setq options `((,(format "id - %s" id) . ,(format "element = controller.find_element_by_id(%s)" id))
-		    (,(format "class - %s" class) . ,(format "element = controller.find_element_by_class_name(%s)" class))
-		    (,(format "name - %s" name) . ,(format "element = controller.find_element_by_name(%s)" name))
-		    (,(format "tag - %s" tag) . ,(format "element = controller.find_element_by_tag_name(%s)" tag))
-		    (,(format "text - %s" text) . ,(format "element =controller.find_element_by_link_text(%s)" text))
-		    (,(format "link - %s" link) . ,(format "element =controller.get(%s)" link))
+    (setq options `((,(format "id - %s" id) . ,(controller-get "find_id_selection" id))
+		    (,(format "class - %s" class) . ,(controller-get "find_class_selection" class))
+		    (,(format "name - %s" name) . ,(controller-get "find_name_selection" name))
+		    (,(format "tag - %s" tag) . ,(controller-get "find_tag_selection" tag))
+		    (,(format "text - %s" text) . ,(controller-get "find_text_selection" text))
+		    (,(format "link - %s" link) . ,(controller-get "find_link_selection" link))
 		    ))
     ;; TODO partial link text
     (setq helm-attribute-chooser
@@ -199,162 +225,141 @@
 (defun controller-break ()
   "Break program for things like captcha"
   (interactive)
-  (setq controller-recording (cons "input('Press enter to to continue.')" controller-recording))
-  (message "Break inserted")
-  )
+  (setq controller-recording (cons (controller-get "break") controller-recording))
+  (message "Break inserted"))
 
 (defun controller-page-down ()
   "Scroll Down."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.PAGE_DOWN).perform()")
-  )
+  (controller-execute "page_down"))
 
 (defun controller-page-up ()
   "Scroll Up."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.PAGE_UP).perform()")
-  )
+  (controller-execute "page_up"))
 
 (defun controller-scroll-left ()
   "Scroll Left."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.LEFT).perform()")
-  )
+  (controller-execute "scroll_left"))
 
 (defun controller-scroll-right ()
   "Scroll Right."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.RIGHT).perform()")
-  )
+  (controller-execute "scroll_right"))
 
 (defun controller-scroll-up ()
   "Scroll Left."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.LEFT).perform()")
-  )
+  (controller-execute "scroll_up"))
 
 (defun controller-scroll-down ()
   "Scroll Right."
   (interactive)
-  (send-to-python "ActionChains(controller).key_down(Keys.RIGHT).perform()")
-  )
+  (controller-execute "scroll_down"))
 
 (defun controller-refresh ()
   "Scroll Down."
   (interactive)
-  (send-to-python "controller.refresh()")
-  )
+  (controller-execute "refresh"))
+
 (defun controller-input-mode (input)
   "Start Input Mode"
   (interactive "sInput: ")
-  (send-to-python "ActionChains(controller).send_keys(\"%s\").perform()" input)
-  )
+  (controller-execute "send_input" input))
 
 (defun controller-url-goto (input)
   "Start Input Mode"
   (interactive "sURL: ")
-  (send-to-python "controller.get(\"%s\")" input)
-  (setq controller-history (cons input controller-history))
-  )
+  ;; FIXME This should be in the text box. Too lazy to figure out how that works
+  (if (eq t (compare-strings "http" 0 3 input 0 3))
+      (controller-execute "url_nav" input)
+    (controller-execute "url_nav" (format "https://%s" input))))
 
 (defun controller-new-tab ()
   "Open new tab"
   (interactive)
-  (send-to-python "controller.execute_script(\"window.open('https://google.com');\")")
-  )
+  (controller-execute "new_tab"))
 
 (defun controller-send-enter ()
   "Send Enter."
   (interactive)
-  (send-to-python "ActionChains(controller).send_keys(Keys.ENTER).perform()")
-  )
+  (controller-execute "send_enter"))
 
 (defun controller-close-tab ()
   "Send Enter."
   (interactive)
-  (send-to-python "controller.close()")
-  )
+  (controller-execute "close_tab"))
 
 (defun controller-send-escape ()
   "Send Escape."
   (interactive)
-  (send-to-python "ActionChains(controller).send_keys(Keys.ESCAPE).perform()")
-  )
+  (controller-execute "send_escape"))
 
 (defun controller-send-tab ()
   "Send Escape."
   (interactive)
-  (send-to-python "ActionChains(controller).send_keys(Keys.TAB).perform()")
-  )
+  (controller-execute "send_tab"))
 
 (defun controller-backward-history ()
   "Go Back."
   (interactive)
-  (send-to-python "controller.back()"))
+  (controller-execute "backward_history"))
 
 (defun controller-forward-history ()
   "Go Forward."
   (interactive)
-  (send-to-python "controller.forward()"))
+  (controller-execute "forward_history"))
 
 (defun controller-search-in-page (input)
   "Search for element"
   (interactive "sText: ")
-  (send-to-python "element = controller.find_element_by_xpath(\"//*[contains(text(), '%s')]\")" input)
-  (controller-highlight)
-  )
+  (controller-execute "search_in_page" input)
+  (controller-highlight))
 
 (defun controller-guided-search-in-page ()
   "Like search but with helm"
   (interactive)
-  (python-shell-send-string "temp = controller.find_elements(By.TAG_NAME, \"body\")")
-  (python-shell-send-string "temp = temp[0]")
-  (setq options (split-string (python-shell-send-string-no-output "print(temp.text)") "\n"))
+  (setq options (split-string (car (controller-execute "guided_search" nil t)) "\n"))
   (setq some-helm-source
 	'((name . "Guided Search")
           (candidates . options)
           (action . (lambda (candidate)
                       (controller-search-in-page candidate)))))
-  (helm :sources '(some-helm-source))
-  )
+  (helm :sources '(some-helm-source)))
 
 
 (defun controller-click-highlighted ()
   "Click highlighted Element."
   (interactive)
-  (send-to-python "element.click()")
-  )
+  (controller-execute "click_highlighted"))
 
 (defun controller-print-highlighted ()
   "Print the text of this element."
   (interactive)
-  (send-to-python "print(element.text)")
-  )
+  (controller-execute "print_highlighted"))
 
 (defun controller-bookmark-page ()
   "Bookmark the current page"
+  ;; TODO: Names and descriptions
   (interactive)
-  (setq controller-bookmarks (cons (python-shell-send-string-no-output "controller.current_url") controller-bookmarks))
-  )
+  (setq controller-bookmarks (cons (controller-execute "current_url" nil t) controller-bookmarks)))
 
 (defun controller-highlight ()
   "Highlight Found Element."
   (interactive)
-  (send-to-python "highlight(element)" nil t))
+  (controller-execute "highlight_element" nil t))
 
 (defun controller-resize-browser ()
   "Resize the browser window."
   (interactive)
-  (send-to-python "controller.maximize_window()")
-  (send-to-python "resolution = controller.get_window_size()")
-  (send-to-python "controller.set_window_size(resolution['width'], resolution['height'] * .8)")
-  )
+  (controller-execute "resize_browser"))
 
 (defun controller-wait-for ()
   "Highlight elements on the page and open a helm window for selection"
   (interactive)
-  (python-shell-send-string-no-output "markers = create_markers(controller)")
-  (setq options (reverse (split-string (python-shell-send-string-no-output "print(\" \".join(markers.keys()))"))))
+  (controller-execute "start_find")
+  (setq options (reverse (split-string (car (controller-execute "return_keys" nil t)))))
   (setq some-helm-source
 	'((name . "Choose Element")
           (candidates . options)
@@ -365,14 +370,21 @@
     (if controller-is-recording
 	(controller-wait-chooser)))
   (controller-quit-find)
-  (controller-highlight)
-  )
+  (controller-highlight))
 
+(defun controller-list-cookies ()
+  "List the cookies."
+  (interactive)
+  (helm :sources (helm-build-sync-source "test"
+		   :candidates (mapcar (lambda (x) (format "%s" x)) tmp)
+		   :fuzzy-match t)
+	:buffer "*helm test*"))
+ 
 (defun controller-find ()
   "Highlight elements on the page and open a helm window for selection"
   (interactive)
-  (python-shell-send-string-no-output "markers = create_markers(controller)")
-  (setq options (reverse (split-string (python-shell-send-string-no-output "print(\" \".join(markers.keys()))"))))
+  (controller-execute "start_find")
+  (setq options (reverse (split-string (car (controller-execute "return_keys" nil t)))))
   (setq some-helm-source
 	'((name . "Choose Element")
           (candidates . options)
@@ -383,26 +395,37 @@
     (if controller-is-recording
 	(controller-attribute-chooser)))
   (controller-quit-find)
-  (controller-highlight)
-  )
+  (controller-highlight))
 
 (defun controller-quit-find ()
   "Quit find mode"
   (interactive)
-  (python-shell-send-string "close_markers(controller)")
-  )
+  (controller-execute "quit_find" nil t))
 
 (defun controller-switch-tab ()
   "switch tabs"
   (interactive)
-  (setq options (send-to-python "windows = switch_window(controller)"))
+  (setq options (controller-execute "switch_tab"))
   (setq some-helm-source
 	'((name . "Choose Tab")
           (candidates . options)
           (action . (lambda (candidate)
                       (controller-switch-tab-switch candidate)))))
-  (helm :sources '(some-helm-source))
-  )
+  (helm :sources '(some-helm-source)))
+
+(defun controller-get-source ()
+  "Gets the source of the current page."
+  (interactive)
+  (controller-execute "get_page_source" nil t)
+  (with-output-to-temp-buffer (generate-new-buffer  "*controller-page-source*")
+    (switch-to-buffer-other-window (generate-new-buffer "*controller-page-source*"))
+    (insert (controller-execute "get_page_source" nil t))
+    (html-mode)))
+
+(defun controller-get-cookies ()
+  "Gets the current cookies and parses them."
+  (interactive)
+  (setq tmp (json-read-from-string (substring (controller-execute "get_cookies") 1 -1 ))))
 
 (defun controller-record ()
   "Toggle recording."
@@ -417,12 +440,9 @@
     (progn
       (setq controller-recording '())
       (setq controller-is-recording t)
-      (controller-init)
-      (message "Recording!")
-      )
-    )
-  )
+      (message "Recording!"))))
 
+;;; Provide
 (provide 'controller)
 
 ;;; controller.el ends here
