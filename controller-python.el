@@ -18,10 +18,11 @@
 ;; Imports
 (require 'python)
 (require 'org)
-(require 'controller)
+;; (require 'controller)
 
 ;;; Constants
-(defvar controller-python-file "python.org")
+(defconst directory-of-python-file (file-name-directory load-file-name))
+(defvar controller-python-file (expand-file-name "python.org" directory-of-python-file))
 
 ;;; Functions
 (defun controller-python-get (command &optional arg)

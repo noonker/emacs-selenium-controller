@@ -16,7 +16,13 @@
 ;;; TODOS
 
 ;;; Essential
-;; Implement a cookie editor
+;; Allow saving of history
+;; Script browser and runner
+;; Implement persistence mechanisms.  Currently all the things are lost on restart
+;; Better bookmarks
+;; Better importing (load-file)
+
+;;; Non-Essential
 ;; Allow controlling multiple browsers
 ;; - This will likely mean putting all controllers in a list
 ;; - Maybe have them be named and allow specification of which browser gets which action
@@ -26,18 +32,8 @@
 ;; - ..information or be a small window IN the modeline
 ;; Support browsermob proxy
 ;; Support selenium profiles
-;; Allow saving of history
-;; Script browser and runner
-;; Implement persistence mechanisms.  Currently all the things are lost on restart
-;; Recording rework
-;; Same REPL for org bufer and running code
-;; Decouple init from python implementation
-
-;;; Non-Essential
-;; Figure out how to work around locking issues
 ;; Figure out the structure of actual Emacs packages. (I don't think it's requre AND load-file)
 ;; Add constraints to make sure variables exist and return errors if they do not
-;; Better bookmarks
 ;; Figure out better find options.  Currently find mode is pretty finnicky.
 ;; Enable support for browser addons
 ;; Support pass https://github.com/NicolasPetton/pass mode for scripts
@@ -51,15 +47,17 @@
 ;; Pseudocode e.c. "went to firefox.com clicked on "log in"
 ;; Grid Integration
 ;; Captcha Alert- STOP when captcha encoundered and let user do the captcha before continting
+;; Figure out how to work around locking issues
 
 ;;; Code:
 
 ;;; Imports
+(defconst directory-of-foo (file-name-directory load-file-name))
+(load-file (expand-file-name "controller-python.el" directory-of-foo))
+(load-file (expand-file-name "controller-cookies.el" directory-of-foo))
+;(load-file "controller-python.el")
+;(load-file "controller-cookies.el")
 
-;; (require 'controller-python)
-;; (require 'controller-cookies)
-(load-file "./controller-python.el")
-;; (load-file "./controller-cookies.el")
 (require 'json)
 
 ;;; Mode-Related Code
@@ -117,6 +115,7 @@
 (defun browser-controller ()
   "This is the entrypoint for the browser controller."
   (interactive)
+  (python-shell-make-comint "python3" "browser-controller")
   (switch-to-buffer "browser-controller")
   (buffer-disable-undo "browser-controller")
   (setq controller-is-recording nil)
@@ -372,13 +371,6 @@
   (controller-quit-find)
   (controller-highlight))
 
-(defun controller-list-cookies ()
-  "List the cookies."
-  (interactive)
-  (helm :sources (helm-build-sync-source "test"
-		   :candidates (mapcar (lambda (x) (format "%s" x)) tmp)
-		   :fuzzy-match t)
-	:buffer "*helm test*"))
  
 (defun controller-find ()
   "Highlight elements on the page and open a helm window for selection"
@@ -421,11 +413,6 @@
     (switch-to-buffer-other-window (generate-new-buffer "*controller-page-source*"))
     (insert (controller-execute "get_page_source" nil t))
     (html-mode)))
-
-(defun controller-get-cookies ()
-  "Gets the current cookies and parses them."
-  (interactive)
-  (setq tmp (json-read-from-string (substring (controller-execute "get_cookies") 1 -1 ))))
 
 (defun controller-record ()
   "Toggle recording."

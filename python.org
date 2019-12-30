@@ -68,6 +68,8 @@ def select_marker(tag, markers):
     return markers[tag]
 #+end_src 
 
+#+RESULTS: select_marker
+
 #+name: close_markers
 #+begin_src python :session browser-controller
 def close_markers(controller):
@@ -315,14 +317,21 @@ print(controller.page_source)
 
 #+name: get_cookies
 #+begin_src python :session browser-controller
-json.dumps(controller.get_cookies())
+for cookie in controller.get_cookies():
+    print(json.dumps(cookie))
 #+end_src
 
-#+name: replace_cookie
+#+name: delete_cookie
 #+begin_src python :session browser-controller
 controller.delete_cookie("%s")
-controller.add_cookie(%s)
 #+end_src
+
+#+name: add_cookie
+#+begin_src python :session browser-controller
+controller.add_cookie((json.loads('%s')))
+#+end_src
+
+
 * Lookup Only Behavior
 ** Waits
 #+name: wait_id_selection
