@@ -49,7 +49,7 @@
 				unformatted_command)))
     (if (and controller-is-recording (not bypass))
 	(setq controller-recording (cons command controller-recording)))
-    (remove "" (split-string (python-shell-send-string-no-output command) "\n"))))
+    (remove "" (split-string (python-shell-send-string-no-output command (get-process "browser-controller")) "\n"))))
 
 ;;; Provide
 (provide 'controller-python)
