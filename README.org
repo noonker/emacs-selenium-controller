@@ -1,0 +1,53 @@
+#+TITLE: Emacs Selenium Controller
+
+* Overview
+The goal of this program is to allow you to control browsers from emacs. It's in a semi-working state with a bunch of planned features
+
+* Installation
+Clone the repo and source the load the =controller.el= file
+#+begin_src emacs-lisp
+(load-file "~/git/emacs-selenium-controller/controller.el")
+#+end_src
+
+This requires a running python installation and the  =selenium=package to be installed
+
+#+begin_src
+pip3 install selenium
+#+end_src
+
+** Firefox Webdriver
+Grab the latest geckodriver from [[https://github.com/mozilla/geckodriver/releases/][here]] and make sure it's available in your path
+
+* Running
+Start the browser with the =browser-controller= command. The =browser-controller= that's spawned can be controlled via this interface. This is the default keymap:
+#+begin_src emacs-lisp
+(define-derived-mode controller-mode special-mode "controller-mode"
+  (define-key controller-mode-map (kbd "f") 'controller-find)
+  (define-key controller-mode-map (kbd "j") 'controller-scroll-down)
+  (define-key controller-mode-map (kbd "k") 'controller-scroll-up)
+  (define-key controller-mode-map (kbd "h") 'controller-scroll-left)
+  (define-key controller-mode-map (kbd "l") 'controller-scroll-right)
+  (define-key controller-mode-map (kbd "p") 'controller-page-up)
+  (define-key controller-mode-map (kbd "n") 'controller-page-down)
+  (define-key controller-mode-map (kbd "TAB") 'controller-send-tab)
+  (define-key controller-mode-map (kbd "i") 'controller-input-mode)
+  (define-key controller-mode-map (kbd "e") 'controller-refresh)
+  (define-key controller-mode-map (kbd "z") 'controller-send-escape)
+  (define-key controller-mode-map (kbd "W") 'controller-close-tab)
+  (define-key controller-mode-map (kbd "<return>") 'controller-send-enter)
+  (define-key controller-mode-map (kbd "d") 'controller-quit-find)
+  (define-key controller-mode-map (kbd "L") 'controller-url-goto)
+  (define-key controller-mode-map (kbd "e") 'controller-forward-history)
+  (define-key controller-mode-map (kbd "a") 'controller-backward-history)
+  (define-key controller-mode-map (kbd "s") 'controller-search-in-page)
+  (define-key controller-mode-map (kbd "S") 'controller-guided-search-in-page)
+  (define-key controller-mode-map (kbd "r") 'controller-record)
+  (define-key controller-mode-map (kbd "c") 'controller-click-highlighted)
+  (define-key controller-mode-map (kbd "*") 'controller-highlight)
+  (define-key controller-mode-map (kbd "b") 'controller-bookmark-page)
+  (define-key controller-mode-map (kbd "B") 'controller-break)
+  (define-key controller-mode-map (kbd "t") 'controller-switch-tab)
+  (define-key controller-mode-map (kbd "m") 'controller-print-highlighted)
+  (define-key controller-mode-map (kbd "T") 'controller-new-tab)
+  (define-key controller-mode-map (kbd ".") 'controller-wait-for))
+#+end_src
